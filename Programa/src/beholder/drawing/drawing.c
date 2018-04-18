@@ -10,6 +10,8 @@
 Color loyal_color;
 /* El color para marcar las celdas rebeldes */
 Color rebel_color;
+/* El color para marcar las celdas sin asociación */
+Color blank_color;
 
 /** Modifica el pixel de la imagen**/
 static void change_pixel_color(BG* bg, int row, int col, Color color)
@@ -57,7 +59,27 @@ bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
 
   cairo_paint(cr);
 
-  cairo_scale(cr, 1, 1);
+  cairo_scale(cr, 1.0/cont -> scale, 1.0/cont -> scale);
+
+  /* Dibujamos lineas claras y delgadas */
+  cairo_set_line_width(cr, cont -> scale / 32);
+  cairo_set_source_rgba(cr,0.6,0.6,0.6,0.6);
+
+  for(int row = 0; row < cont -> matrix_height; row++)
+  {
+    /* Lineas horizontales */
+    cairo_move_to(cr, cont -> scale, row * cont -> scale);
+    cairo_rel_line_to(cr, cont -> image_width - 2*cont -> scale, 0);
+    cairo_stroke(cr);
+  }
+
+  for(int col = 0; col < cont -> matrix_width; col++)
+  {
+    /* Lineas horizontales */
+    cairo_move_to(cr, col * cont -> scale,cont -> scale);
+    cairo_rel_line_to(cr, 0, cont -> image_height - 2*cont -> scale);
+    cairo_stroke(cr);
+  }
 
 	return true;
 }
@@ -76,18 +98,30 @@ static BG* init_background(int height, int width)
   bg -> image  = cairo_image_surface_create_for_data(bg -> data, format, width, height, bg -> stride);
 
 	/* Inicializamos la imagen */
-  for(int j = 0; j < height; j++)
+  for(int row = 0; row < height; row++)
   {
-    for(int i = 0; i <  width; i++)
+    for(int col = 0; col <  width; col++)
     {
-			/* Blue channel */
-      bg -> data[bg -> stride * j + i * 4 + 0] = 241;
-			/* Green channel */
-      bg -> data[bg -> stride * j + i * 4 + 1] = 255;
-			/* Red channel */
-      bg -> data[bg -> stride * j + i * 4 + 2] = 253;
+      if(row == 0 || col == 0 || row == height - 1 || col == width -1)
+      {
+        change_pixel_color(bg, row, col, loyal_color);
+      }
+      else
+      {
+        if(((row ^ col)) % 2 == 0)
+        {
+          change_pixel_color(bg, row, col, loyal_color);
+        }
+        else
+        {
+          change_pixel_color(bg, row, col, rebel_color);
+
+        }
+
+      }
+
 			/* Alpha channel */
-      bg -> data[bg -> stride * j + i * 4 + 3] = 255;
+      bg -> data[bg -> stride * row + col * 4 + 3] = 255;
     }
   }
 
@@ -98,26 +132,46 @@ static BG* init_background(int height, int width)
   return bg;
 }
 
+static cairo_surface_t* init_vector_image(int height, int width)
+{
+  /* El formato de imagen: R G B de 8 bits cada uno */
+  cairo_format_t format = CAIRO_FORMAT_ARGB32;
+  /* La imagen vectorial misma */
+  cairo_surface_t* img = cairo_image_surface_create(format, width, height);
+  /* Inicialmente la imagen es completamente transparente */
+  cairo_t* cr = cairo_create(img);
+  cairo_set_source_rgba(cr, 0, 0, 0, 0);
+  cairo_paint(cr);
+  cairo_destroy(cr);
+
+  return img;
+}
 
 /** Genera los contenedores para las dos imagenes superpuestas */
 Content* drawing_init(int height, int width)
 {
+  height += 2;
+  width += 2;
+
   Content* cont = malloc(sizeof(Content));
 
   cont -> matrix_height = height;
   cont -> matrix_width = width;
 
+  loyal_color = color_init(205, 221, 255);
+  rebel_color = color_init(202, 255, 219);
+  blank_color = color_init(253, 255, 241);
+
   cont -> status_image = init_background(height, width);
 
   /* Las dimensiones de la ventana deben ajustarse a la matriz */
 	cont -> scale = WINDOW_MAX_SIZE / fmax(height, width);
+  printf("%lf\n", cont -> scale);
 	cont -> image_height = cont -> scale * height;
 	cont -> image_width  = cont -> scale * width;
 
-  //TODO
+  cont -> number_image = init_vector_image(cont -> image_height, cont -> image_width);
 
-  loyal_color = color_init(210, 220, 255);
-  rebel_color = color_init(202, 255, 219);
 
   return cont;
 }
