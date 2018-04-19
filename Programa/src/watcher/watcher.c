@@ -65,6 +65,22 @@ void watcher_clear_cell (int row, int col)
 	}
 }
 
+/** Imprime la ventana al 100% de tamaño en formato PDF */
+void watcher_snapshot(char* filename)
+{
+	if(watcher)
+	{
+		if(fprintf(watcher, "H %s\n", filename) < 0)
+		{
+			watcher_close();
+		}
+		else
+		{
+			fflush(watcher);
+		}
+	}
+}
+
 /** Cierra y libera los recursos de la ventana */
 void watcher_close()
 {
