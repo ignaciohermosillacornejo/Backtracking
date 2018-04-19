@@ -29,8 +29,8 @@ struct content
 	int image_height;
 	/** La imagen de los estados de cada celda */
 	BG* status_image;
-	/** La imagen de los números */
-	cairo_surface_t* number_image;
+	/** Matriz con los grados para cada celda */
+	uint8_t** degree_matrix;
 	/** Ancho de la matriz */
 	int matrix_width;
 	/** Alto de la matriz */

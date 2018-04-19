@@ -43,12 +43,12 @@ void drawing_cell_status  (Content* cont, int row, int col, bool status)
 /** Escribe el número correspondiente sobre la celda */
 void drawing_cell_degree  (Content* cont, int row, int col, int degree)
 {
-  abort();
+  cont -> degree_matrix[row][col] = degree;
 }
 /** Deja la celda sin color, como venía originalmente */
 void drawing_cell_clear   (Content* cont, int row, int col)
 {
-  abort();
+  change_pixel_color(cont -> status_image, row, col, blank_color);
 }
 
 bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
@@ -65,7 +65,7 @@ bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
   cairo_set_line_width(cr, cont -> scale / 32);
   cairo_set_source_rgba(cr,0.6,0.6,0.6,0.6);
 
-  for(int row = 0; row < cont -> matrix_height; row++)
+  for(int row = 1; row < cont -> matrix_height; row++)
   {
     /* Lineas horizontales */
     cairo_move_to(cr, cont -> scale, row * cont -> scale);
@@ -73,12 +73,38 @@ bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
     cairo_stroke(cr);
   }
 
-  for(int col = 0; col < cont -> matrix_width; col++)
+  for(int col = 1; col < cont -> matrix_width; col++)
   {
     /* Lineas horizontales */
     cairo_move_to(cr, col * cont -> scale,cont -> scale);
     cairo_rel_line_to(cr, 0, cont -> image_height - 2*cont -> scale);
     cairo_stroke(cr);
+  }
+
+  /* Numbers */
+
+  cairo_text_extents_t te;
+  cairo_set_source_rgb (cr, 0.3, 0.3, 0.3);
+  cairo_select_font_face (cr, "monospace",
+      CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+  cairo_set_font_size (cr, cont -> scale / 2);
+  char text[2];
+
+  for(int row = 1; row < cont -> matrix_height - 1; row++)
+  {
+      for(int col = 1; col < cont -> matrix_width - 1; col++)
+      {
+          if(!cont -> degree_matrix[row][col]) continue;
+
+          sprintf(text,"%hhu",cont -> degree_matrix[row][col]);
+
+          cairo_text_extents (cr, text, &te);
+
+          double x = cont -> scale / 2 + cont -> scale * col - te.width / 2 - te.x_bearing;
+          double y = cont -> scale / 2 + cont -> scale * row - te.height / 2 - te.y_bearing;
+          cairo_move_to (cr, x, y);
+          cairo_show_text (cr, text);
+      }
   }
 
 	return true;
@@ -108,18 +134,8 @@ static BG* init_background(int height, int width)
       }
       else
       {
-        if(((row ^ col)) % 2 == 0)
-        {
-          change_pixel_color(bg, row, col, loyal_color);
-        }
-        else
-        {
-          change_pixel_color(bg, row, col, rebel_color);
-
-        }
-
+        change_pixel_color(bg, row, col, blank_color);
       }
-
 			/* Alpha channel */
       bg -> data[bg -> stride * row + col * 4 + 3] = 255;
     }
@@ -132,28 +148,15 @@ static BG* init_background(int height, int width)
   return bg;
 }
 
-static cairo_surface_t* init_vector_image(int height, int width)
-{
-  /* El formato de imagen: R G B de 8 bits cada uno */
-  cairo_format_t format = CAIRO_FORMAT_ARGB32;
-  /* La imagen vectorial misma */
-  cairo_surface_t* img = cairo_image_surface_create(format, width, height);
-  /* Inicialmente la imagen es completamente transparente */
-  cairo_t* cr = cairo_create(img);
-  cairo_set_source_rgba(cr, 0, 0, 0, 0);
-  cairo_paint(cr);
-  cairo_destroy(cr);
-
-  return img;
-}
-
 /** Genera los contenedores para las dos imagenes superpuestas */
 Content* drawing_init(int height, int width)
 {
+  Content* cont = malloc(sizeof(Content));
+
+
+  /* Agregamos celdas en blanco a cada lado de la matriz */
   height += 2;
   width += 2;
-
-  Content* cont = malloc(sizeof(Content));
 
   cont -> matrix_height = height;
   cont -> matrix_width = width;
@@ -170,7 +173,12 @@ Content* drawing_init(int height, int width)
 	cont -> image_height = cont -> scale * height;
 	cont -> image_width  = cont -> scale * width;
 
-  cont -> number_image = init_vector_image(cont -> image_height, cont -> image_width);
+  cont -> degree_matrix = calloc(height, sizeof(uint8_t*));
+  for(int row = 0; row < height; row++)
+  {
+    cont -> degree_matrix[row] = calloc(width, sizeof(uint8_t));
+  }
+
 
 
   return cont;
@@ -179,22 +187,24 @@ Content* drawing_init(int height, int width)
 /** Geenera una imagen en pdf para un estado en particular */
 void drawing_snapshot(Content* cont, char* filename)
 {
-	double width = cont -> image_width;
-	double height = cont -> image_height;
+	double width = cont -> matrix_width * 64;
+	double height = cont -> matrix_height * 64;
 
 	/* Imprimimos las imagenes del tablero */
 	cairo_surface_t* surface;
 	cairo_t *cr;
 
-  surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
+  // surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24, width, height);
 
-
-  //TODO
-	// surface = cairo_pdf_surface_create (filename, width, height);
+	surface = cairo_pdf_surface_create (filename, width, height);
 	cr = cairo_create(surface);
 
 	/* Reseteamos los parámetros para generar correctamente la imagen */
 	Content aux = *cont;
+
+  aux.scale = 64;
+  aux.image_height = height;
+  aux.image_width = width;
 
 	/* Dibuja el estado actual */
 	drawing_draw(cr, &aux);
