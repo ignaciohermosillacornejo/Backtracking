@@ -34,10 +34,12 @@ void drawing_cell_status  (Content* cont, int row, int col, bool status)
   if(status)
   {
     change_pixel_color(cont -> status_image, row, col, rebel_color);
+    cont -> status_matrix[row][col] = 1;
   }
   else
   {
     change_pixel_color(cont -> status_image, row, col, loyal_color);
+    cont -> status_matrix[row][col] = -1;
   }
 }
 /** Escribe el número correspondiente sobre la celda */
@@ -49,6 +51,7 @@ void drawing_cell_degree  (Content* cont, int row, int col, int degree)
 void drawing_cell_clear   (Content* cont, int row, int col)
 {
   change_pixel_color(cont -> status_image, row, col, blank_color);
+  cont -> status_matrix[row][col] = 0;
 }
 
 bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
@@ -63,22 +66,34 @@ bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
 
   /* Dibujamos lineas claras y delgadas */
   cairo_set_line_width(cr, cont -> scale / 32);
-  cairo_set_source_rgba(cr,0.6,0.6,0.6,0.6);
+  cairo_set_source_rgba(cr,0.3,0.3,0.3,0.7);
 
+  /* Lineas verticales */
   for(int row = 1; row < cont -> matrix_height; row++)
   {
-    /* Lineas horizontales */
-    cairo_move_to(cr, cont -> scale, row * cont -> scale);
-    cairo_rel_line_to(cr, cont -> image_width - 2*cont -> scale, 0);
-    cairo_stroke(cr);
+    for(int col = 1; col < cont -> matrix_width; col++)
+    {
+      if(cont -> status_matrix[row][col - 1] != cont -> status_matrix[row][col] || !cont -> status_matrix[row][col])
+      {
+        cairo_move_to(cr, col * cont -> scale, row * cont -> scale);
+        cairo_rel_line_to(cr, 0, cont -> scale);
+        cairo_stroke(cr);
+      }
+    }
   }
 
+  /* Lineas horizontales */
   for(int col = 1; col < cont -> matrix_width; col++)
   {
-    /* Lineas horizontales */
-    cairo_move_to(cr, col * cont -> scale,cont -> scale);
-    cairo_rel_line_to(cr, 0, cont -> image_height - 2*cont -> scale);
-    cairo_stroke(cr);
+    for(int row = 1; row < cont -> matrix_height; row++)
+    {
+      if(cont -> status_matrix[row - 1][col] != cont -> status_matrix[row][col] || !cont -> status_matrix[row][col])
+      {
+        cairo_move_to(cr, col * cont -> scale, row * cont -> scale);
+        cairo_rel_line_to(cr, cont -> scale, 0);
+        cairo_stroke(cr);
+      }
+    }
   }
 
   /* Numbers */
@@ -174,12 +189,19 @@ Content* drawing_init(int height, int width)
 	cont -> image_width  = cont -> scale * width;
 
   cont -> degree_matrix = calloc(height, sizeof(uint8_t*));
+  cont -> status_matrix = calloc(height, sizeof(int8_t*));
   for(int row = 0; row < height; row++)
   {
     cont -> degree_matrix[row] = calloc(width, sizeof(uint8_t));
+    cont -> status_matrix[row] = calloc(width, sizeof(int8_t));
+    for(int col = 0; col < width; col++)
+    {
+      if(row == 0 || col == 0 || row == height - 1 || col == width -1)
+      {
+        cont -> status_matrix[row][col] = -1;
+      }
+    }
   }
-
-
 
   return cont;
 }
@@ -222,7 +244,16 @@ void drawing_free(Content* cont)
   cairo_surface_destroy(cont -> status_image -> image);
   cairo_pattern_destroy(cont -> status_image -> pattern);
 
-  //TODO
+  for(int row = 0; row < cont -> matrix_height; row++)
+  {
+    free(cont -> status_matrix[row]);
+    free(cont -> degree_matrix[row]);
+  }
+  free(cont -> degree_matrix);
+  free(cont -> status_matrix);
+
+  free(cont -> status_image -> data);
+  free(cont -> status_image);
 
   free(cont);
 }

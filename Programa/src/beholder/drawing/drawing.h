@@ -37,6 +37,7 @@ struct content
 	int matrix_height;
 	/** Indica la escala en la que se está trabajando */
 	double scale;
+	int8_t** status_matrix;
 };
 /** Contiene la información de lo que ha de ser dibujado en el canvas */
 typedef struct content Content;
