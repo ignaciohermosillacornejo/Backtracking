@@ -41,7 +41,9 @@ static void* update(void* ptr)
 				int row, col;
 				int deg;
 				fscanf(stdin, "%d %d %d", &row, &col, &deg) ? : abort();
-				drawing_cell_degree(cont, row+1, col+1, deg);
+				pthread_mutex_lock(&drawing_mutex);
+				drawing_cell_degree(cont, row, col, deg);
+				pthread_mutex_unlock(&drawing_mutex);
 				gtk_widget_queue_draw(canvas);
 			}
 			/* Estado de la celda */
@@ -50,7 +52,9 @@ static void* update(void* ptr)
 				int row, col;
 				int status;
 				fscanf(stdin, "%d %d %d", &row, &col, &status) ? : abort();
-				drawing_cell_status(cont, row + 1, col + 1, status == 1);
+				pthread_mutex_lock(&drawing_mutex);
+				drawing_cell_status(cont, row, col, status == 1);
+				pthread_mutex_unlock(&drawing_mutex);
 				gtk_widget_queue_draw(canvas);
 			}
 			/* Despejar la celda */
@@ -58,7 +62,9 @@ static void* update(void* ptr)
 			{
 				int row, col;
 				fscanf(stdin, "%d %d", &row, &col) ? : abort();
-				drawing_cell_clear(cont, row + 1, col + 1);
+				pthread_mutex_lock(&drawing_mutex);
+				drawing_cell_clear(cont, row, col);
+				pthread_mutex_unlock(&drawing_mutex);
 				gtk_widget_queue_draw(canvas);
 			}
 			/* Guardar imagen */

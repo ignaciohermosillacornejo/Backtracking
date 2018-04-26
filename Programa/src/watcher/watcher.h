@@ -13,7 +13,7 @@ void watcher_open            (int height, int width);
 /** Escribe un número entre 1 y 4 inclusive dentro de esa celda */
 void watcher_set_cell_degree (int row, int col, int degree);
 /** Indica si una celda es o no rebelde */
-void watcher_set_cell_status (int row, int col, bool type);
+void watcher_set_cell_status (int row, int col, bool is_rebel);
 /** Deja la celda en blanco */
 void watcher_clear_cell      (int row, int col);
 /** Imprime la ventana al 100% de tamaño en formato PDF */

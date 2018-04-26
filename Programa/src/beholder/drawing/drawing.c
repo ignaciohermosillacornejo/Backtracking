@@ -54,25 +54,31 @@ void drawing_cell_clear   (Content* cont, int row, int col)
   cont -> status_matrix[row][col] = 0;
 }
 
+/** Dibuja el problema en la ventana */
 bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
 {
+  /* Para prevenir cambios mientras dibujamos */
+  pthread_mutex_lock(&drawing_mutex);
+
+  /* Hacemos calzar la ventana con la imagen  */
   cairo_scale(cr, cont -> scale, cont -> scale);
-
-	cairo_set_source(cr, cont -> status_image -> pattern);
-
+  /* Dibujaremos la imagen de fondo */
+  cairo_set_source(cr, cont -> status_image -> pattern);
+  /* Pintamos la imagen */
   cairo_paint(cr);
-
+  /* Restauramos la ventana */
   cairo_scale(cr, 1.0/cont -> scale, 1.0/cont -> scale);
 
   /* Dibujamos lineas claras y delgadas */
   cairo_set_line_width(cr, cont -> scale / 32);
-  cairo_set_source_rgba(cr,0.3,0.3,0.3,0.7);
+  cairo_set_source_rgb(cr, 0.9, 0.9, 1);
 
   /* Lineas verticales */
-  for(int row = 1; row < cont -> matrix_height; row++)
+  for(int row = 0; row < cont -> matrix_height; row++)
   {
     for(int col = 1; col < cont -> matrix_width; col++)
     {
+      /* Solo se dibujan si las celdas son de distinto color o ambas estan en blanco */
       if(cont -> status_matrix[row][col - 1] != cont -> status_matrix[row][col] || !cont -> status_matrix[row][col])
       {
         cairo_move_to(cr, col * cont -> scale, row * cont -> scale);
@@ -83,10 +89,11 @@ bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
   }
 
   /* Lineas horizontales */
-  for(int col = 1; col < cont -> matrix_width; col++)
+  for(int col = 0; col < cont -> matrix_width; col++)
   {
     for(int row = 1; row < cont -> matrix_height; row++)
     {
+      /* Solo se dibujan si las celdas son de distinto color o ambas estan en blanco */
       if(cont -> status_matrix[row - 1][col] != cont -> status_matrix[row][col] || !cont -> status_matrix[row][col])
       {
         cairo_move_to(cr, col * cont -> scale, row * cont -> scale);
@@ -99,7 +106,6 @@ bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
   /* Numbers */
 
   cairo_text_extents_t te;
-  cairo_set_source_rgb (cr, 0.3, 0.3, 0.3);
   cairo_select_font_face (cr, "monospace",
       CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
   cairo_set_font_size (cr, cont -> scale / 2);
@@ -107,20 +113,27 @@ bool drawing_draw(cairo_t* restrict cr, Content* restrict cont)
 
   for(int row = 1; row < cont -> matrix_height - 1; row++)
   {
-      for(int col = 1; col < cont -> matrix_width - 1; col++)
-      {
-          if(!cont -> degree_matrix[row][col]) continue;
+    for(int col = 1; col < cont -> matrix_width - 1; col++)
+    {
+      if(!cont -> degree_matrix[row][col]) continue;
 
-          sprintf(text,"%hhu",cont -> degree_matrix[row][col]);
+      sprintf(text,"%hhu",cont -> degree_matrix[row][col]);
 
-          cairo_text_extents (cr, text, &te);
+      cairo_text_extents (cr, text, &te);
 
-          double x = cont -> scale / 2 + cont -> scale * col - te.width / 2 - te.x_bearing;
-          double y = cont -> scale / 2 + cont -> scale * row - te.height / 2 - te.y_bearing;
-          cairo_move_to (cr, x, y);
-          cairo_show_text (cr, text);
-      }
+      double x = cont -> scale / 2 + cont -> scale * col - te.width / 2 - te.x_bearing;
+      double y = cont -> scale / 2 + cont -> scale * row - te.height / 2 - te.y_bearing;
+      cairo_move_to (cr, x, y);
+      cairo_text_path(cr, text);
+      cairo_set_source_rgb(cr, 0.9, 0.9, 1);
+      cairo_fill_preserve(cr);
+      cairo_set_line_width(cr, cont -> scale / 256);
+      cairo_set_source_rgb(cr, 0, 0, 0);
+      cairo_stroke(cr);
+    }
   }
+
+  pthread_mutex_unlock(&drawing_mutex);
 
 	return true;
 }
@@ -143,14 +156,7 @@ static BG* init_background(int height, int width)
   {
     for(int col = 0; col <  width; col++)
     {
-      if(row == 0 || col == 0 || row == height - 1 || col == width -1)
-      {
-        change_pixel_color(bg, row, col, loyal_color);
-      }
-      else
-      {
-        change_pixel_color(bg, row, col, blank_color);
-      }
+      change_pixel_color(bg, row, col, blank_color);
 			/* Alpha channel */
       bg -> data[bg -> stride * row + col * 4 + 3] = 255;
     }
@@ -168,39 +174,38 @@ Content* drawing_init(int height, int width)
 {
   Content* cont = malloc(sizeof(Content));
 
+  pthread_mutex_init(&drawing_mutex, NULL);
 
   /* Agregamos celdas en blanco a cada lado de la matriz */
-  height += 2;
-  width += 2;
+  // height += 2;
+  // width += 2;
 
+  /* Dimensiones de la matriz */
   cont -> matrix_height = height;
   cont -> matrix_width = width;
 
-  loyal_color = color_init(205, 221, 255);
-  rebel_color = color_init(202, 255, 219);
-  blank_color = color_init(253, 255, 241);
+  /* Los colores usados para representar los distintos tipos de celda */
+  loyal_color = color_init(249,202,30);
+  rebel_color = color_init(70,79,171);
+  blank_color = color_init(27,27,67);
 
+  /* La imagen con los colores de cada celda */
   cont -> status_image = init_background(height, width);
 
   /* Las dimensiones de la ventana deben ajustarse a la matriz */
 	cont -> scale = WINDOW_MAX_SIZE / fmax(height, width);
-  printf("%lf\n", cont -> scale);
+
+  /* Dimensiones de la ventana */
 	cont -> image_height = cont -> scale * height;
 	cont -> image_width  = cont -> scale * width;
 
+  /* Inicializamos las matrices */
   cont -> degree_matrix = calloc(height, sizeof(uint8_t*));
   cont -> status_matrix = calloc(height, sizeof(int8_t*));
   for(int row = 0; row < height; row++)
   {
     cont -> degree_matrix[row] = calloc(width, sizeof(uint8_t));
     cont -> status_matrix[row] = calloc(width, sizeof(int8_t));
-    for(int col = 0; col < width; col++)
-    {
-      if(row == 0 || col == 0 || row == height - 1 || col == width -1)
-      {
-        cont -> status_matrix[row][col] = -1;
-      }
-    }
   }
 
   return cont;

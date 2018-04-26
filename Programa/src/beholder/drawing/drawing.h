@@ -5,6 +5,9 @@
 #include "color.h"
 #include <pthread.h>
 
+
+pthread_mutex_t drawing_mutex;
+
 /** Contiene toda la información de la imagen de fondo */
 struct background_grid
 {
