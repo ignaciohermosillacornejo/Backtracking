@@ -16,6 +16,7 @@ struct cell
     int rebels;   // Number of rebel neighbours
     int loyals;   // Number of loyal neighbours
     int empty;    // Number of empty neighbours
+    int freedom;  // Number of ways to put the cell
 };
 
 struct board
@@ -43,6 +44,7 @@ bool board_check_groups      (Board *board                               );
 bool board_degree_prune      (Board *board, int row, int col             );
 Cell * board_next_assignation(Board *board                               );
 bool board_check_restrictions(Board *board, Cell *cell                   );
+void board_optimize          (Board *board                               );
 /* Debuging functions */
 void board_print_status(Board *board);
 void board_print_color (Board *board);

@@ -242,8 +242,8 @@ bool board_check_groups(Board *board)
     }
 }
 
+
 /* Helper function, we check if an individual cell meets the degree requirement 
- * TODO: make propragation here
  * */
 bool cell_degree_check(Cell *cell)
 {
@@ -266,7 +266,6 @@ bool cell_degree_check(Cell *cell)
     }
     return false;
 
-    // TODO: propagation goes here
 }
 
 
@@ -300,6 +299,7 @@ bool board_degree_prune(Board *board, int row, int col)
 bool board_check_restrictions(Board *board, Cell *cell)
 {
     return board_check_groups(board) && board_degree_prune(board, cell->row, cell->col);
+    /*
     if (!board_check_groups(board))
     {
         printf("group prune failed\n");
@@ -312,6 +312,7 @@ bool board_check_restrictions(Board *board, Cell *cell)
     {
         printf("neighbour prune failed\n");
     }
+    */
 }
 
 
@@ -365,7 +366,7 @@ Board *board_init(int height, int width)
             if ((!row && !col) || (!row && col + 1 == board->width) || (row + 1 == board->height && !col) || (row + 1 == board->height && col + 1 == board->width))
             {
                 cell->empty = 2;
-            }
+            } //values of the edges - corners
             else if (!row || !col || row + 1 == board->height || col + 1 == board->width)
             {
                 cell->empty = 3;
@@ -384,6 +385,42 @@ Board *board_init(int height, int width)
     }
     return board;
 }
+
+/* we set some of the values that are posible to set on the board */
+void board_optimize(Board *board)
+{
+    for (int row = 1; row < board->height - 1; row++)
+    {
+        for (int col = 1; col < board->width - 1; col++)
+        {
+            Cell *cell = board_get_cell(board, row, col);
+            // Initial values of the corners
+            if ((row == 1 && col == 1) || (row == 1 && col == board->width - 2) || (row == board->height - 2 && col == 1) || (row == board->height - 2 && col == board->width - 2))
+            {
+                if (cell->degree == 1)
+                {
+                    board_set_status(board, row, col, 2);
+                }
+            } //values of the edges - corners
+            else if (row == 1 || col == 1 || row == board->height - 2 || col == board->width - 2)
+            {
+                if (cell->degree == 4)
+                {
+                    board_set_status(board, row, col, 1);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Cell *neighbour = board_iter_neighbours(board, cell, i);
+                        if (neighbour)
+                        {
+                            board_set_status(board, neighbour->row, neighbour->col, 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 /* Used to free the memory of a board and all associated cells */
 void board_destroy(Board *board)

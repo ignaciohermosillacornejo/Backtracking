@@ -12,7 +12,7 @@ bool backtracking(Board *board, int count)
 	Cell *cell = board_next_assignation(board);
 	if (!cell)
 	{
-		printf("End of assignations reached!\n");
+		// printf("End of assignations reached!\n");
 		return true;
 	}
 
@@ -21,7 +21,7 @@ bool backtracking(Board *board, int count)
 		// make assignment
 		int old_status = cell -> status;
 		board_set_status(board, cell->row, cell->col, i);
-		sleep(0);
+		//sleep(1);
 		//printf("\nAssign cell color %d\n", i);
 		//board_print_cell(cell);
 		//printf("backtracking depth: %d\n", count);
@@ -35,7 +35,7 @@ bool backtracking(Board *board, int count)
 			} 
 		}
 		board_set_status(board, cell->row, cell->col, old_status); // backtrack
-		sleep(0);
+		//sleep(1);
 	}
 	return false;
 }
@@ -86,6 +86,7 @@ int main(int argc, char **argv)
 			board_set_degree(board, row, col, degree);
 		}
 	}
+	// board_optimize(board);
 
 	/* Cerramos el archivo */
 	fclose(input_file);
@@ -100,13 +101,15 @@ int main(int argc, char **argv)
 	// board_print_loyal_count(board);
 	// board_print_rebel_count(board);
 	// board_print_empty_count(board);
-	sleep(1);
+	// sleep(15);
 	backtracking(board, 0);
 	/* Paramos por 5 segundos para poder ver la ventana */
 	/* OJO: borra los sleeps o tu código puede dar timeout */
-	printf("backtracing finished \n");
-	//sleep(60);
+	//printf("backtracing finished \n");
+	// sleep(60);
 	/* Cerramos la ventana */
+	//char *filename = "test.pdf";
+	//watcher_snapshot(filename);
 	watcher_close();
 
 
