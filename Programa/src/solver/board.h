@@ -1,23 +1,12 @@
 #pragma once
+#include "stack.h"
+#include "cell.h"
 #include <stdbool.h>
 // module to contain all board operations, and make assignations and revert them
 
-typedef struct cell Cell;
+
 typedef struct board Board;
 
-/** A simple struct to hold some properties */
-struct cell
-{
-    int row;
-    int col;
-    int degree;   // From 0 to 4
-    int status;   // True for rebel, False if not
-    int color;    // To keep track of visited nodes
-    int rebels;   // Number of rebel neighbours
-    int loyals;   // Number of loyal neighbours
-    int empty;    // Number of empty neighbours
-    int freedom;  // Number of ways to put the cell
-};
 
 struct board
 {
@@ -26,6 +15,8 @@ struct board
     int count_loyalist;
     int count_rebel;
     int count_empty;
+    Stack *stack_a;
+    Stack *stack_b;
     Cell *cells; // Simple array of cells to represent a matrix
 };
 
@@ -45,6 +36,7 @@ bool board_degree_prune      (Board *board, int row, int col             );
 Cell * board_next_assignation(Board *board                               );
 bool board_check_restrictions(Board *board, Cell *cell                   );
 void board_optimize          (Board *board                               );
+void board_update_heuristics (Board *board, Cell *cell                   );
 /* Debuging functions */
 void board_print_status(Board *board);
 void board_print_color (Board *board);
@@ -52,3 +44,5 @@ void board_print_rebel_count(Board *board);
 void board_print_loyal_count(Board *board);
 void board_print_empty_count(Board *board);
 void board_print_cell(Cell *cell);
+bool board_check_restrictions2(Board *board);
+bool board_check_restrictions3(Board *board, Cell * cell);

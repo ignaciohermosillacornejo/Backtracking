@@ -3,12 +3,14 @@
 #include <unistd.h>
 #include "board.h"
 #include "stack.h"
+#include "cell.h"
 #include "../watcher/watcher.h"
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 void board_print_cell(Cell *cell);
+void board_set_priority(Board *board, Cell *cell, int priority);
 /* Helper function that returns the a pointer to the cell of row and col  */
 Cell *board_get_cell(Board *board, int row, int col)
 {
@@ -242,7 +244,6 @@ bool board_check_groups(Board *board)
     }
 }
 
-
 /* Helper function, we check if an individual cell meets the degree requirement 
  * */
 bool cell_degree_check(Cell *cell)
@@ -256,29 +257,26 @@ bool cell_degree_check(Cell *cell)
     {
         return true;
     }
-    if (cell->status == 1 && cell->loyals <= cell->degree && cell ->loyals + cell->empty >= cell->degree)
+    if (cell->status == 1 && cell->loyals <= cell->degree && cell->loyals + cell->empty >= cell->degree)
     {
         return true;
     }
-    if (cell->status == 2 && cell->rebels <= cell-> degree && cell->rebels + cell->empty >= cell->degree)
+    if (cell->status == 2 && cell->rebels <= cell->degree && cell->rebels + cell->empty >= cell->degree)
     {
         return true;
     }
     return false;
-
 }
-
 
 /* Neighbour prunning, we iter through the cell and its neighbours calling cell_degree_check */
 bool board_degree_prune(Board *board, int row, int col)
 {
     Cell *cell = board_get_cell(board, row, col);
-    // first we check the cell its self, if it doesn't have a degree then its always true
+    // first we check the cell its self
     if (!cell_degree_check(cell))
     {
         return false;
     }
-    //TODO: we check it neighbours
     for (int i = 0; i < 4; i++)
     {
         Cell *neighbour = board_iter_neighbours(board, cell, i);
@@ -295,41 +293,91 @@ bool board_degree_prune(Board *board, int row, int col)
     return true;
 }
 
-
-bool board_check_restrictions(Board *board, Cell *cell)
-{
-    return board_check_groups(board) && board_degree_prune(board, cell->row, cell->col);
-    /*
-    if (!board_check_groups(board))
-    {
-        printf("group prune failed\n");
-        board_print_status(board);
-        printf("count empty: %d\n", board->count_empty);
-        printf("count rebels: %d\n", board->count_rebel);
-        printf("count loyals: %d\n", board->count_loyalist);
-    }
-    if (!board_degree_prune(board, cell->row, cell->col))
-    {
-        printf("neighbour prune failed\n");
-    }
-    */
-}
-
-
-/* We get the next cell for assignation, TODO: implement heuristics ordering */
-Cell * board_next_assignation(Board *board)
+bool board_degree_check(Board *board)
 {
     for (int row = 1; row < board->height - 1; row++)
     {
         for (int col = 1; col < board->width - 1; col++)
         {
-            if (board_get_status(board, row, col) == 0)
+            if (!board_degree_prune(board, row, col))
             {
-                return board_get_cell(board, row, col);
+                return false;
             }
         }
     }
-    return NULL; // in case we don't have any assignations left
+    return true;
+}
+
+bool board_check_restrictions3(Board *board, Cell * cell)
+{
+    return cell_degree_check(cell);
+}
+
+bool board_check_restrictions2(Board *board)
+{
+    return board_check_groups(board) && board_degree_check(board);
+}
+/* Convinience method to do logic && on all restricion */
+bool board_check_restrictions(Board *board, Cell *cell)
+{
+    return board_check_groups(board) && board_degree_prune(board, cell->row, cell->col);
+}
+
+/* we move the cells from the stacks acording to the new heuristics from the assignation */
+void board_update_heuristics(Board *board, Cell *cell)
+{
+    if (!cell->status)
+    {
+        cell->priority = 2;
+    }
+    for (int i = 0; i < 4; i++)
+    {
+        Cell *neighbour = board_iter_neighbours(board, cell, i);
+
+        if (neighbour && !neighbour->status)
+        {
+            if (neighbour -> degree == 4)
+            {
+                neighbour->priority = 1;
+            }
+            if (neighbour -> degree == 3)
+            {
+                if (neighbour -> loyals == 1)
+                {
+                    
+                }
+            }
+        }
+    }
+}
+
+/* We get the next cell for assignation, TODO: implement heuristics ordering */
+Cell *board_next_assignation(Board *board)
+{
+    for (int row = 1; row < board->height - 1; row++)
+    {
+        for (int col = 1; col < board->width - 1; col++)
+        {
+            Cell * cell = board_get_cell(board, row, col);
+            if (cell -> status == 0)
+            {
+                return cell;
+            }
+        }
+    }
+    return NULL;
+    if (board->stack_a->count)
+    {
+        return stack_pop(board->stack_a);
+    }
+    else if (board->stack_b->count)
+    {
+        return stack_pop(board->stack_b);
+    }
+    else
+    {
+        return NULL; // in case we don't have any assignations left
+    }
 }
 
 /* Create our board and return a pointer to our object */
@@ -346,6 +394,8 @@ Board *board_init(int height, int width)
      * we store a simple array of pointers and use basic arithmetic two get the correct cell
      */
     board->cells = (Cell *)malloc(board->height * board->width * sizeof(Cell));
+    board->stack_a = stack_init();
+    board->stack_b = stack_init();
     /* We set the initial values of the cells in our board
      * on the first pass we just create an empty board
      */
@@ -371,6 +421,10 @@ Board *board_init(int height, int width)
             {
                 cell->empty = 3;
             }
+            else
+            {
+                stack_push(board->stack_b, cell);
+            }
         }
     }
     for (int row = 0; row < board->height; row++)
@@ -386,7 +440,7 @@ Board *board_init(int height, int width)
     return board;
 }
 
-/* we set some of the values that are posible to set on the board */
+/* we change some priorities of the values before starting our backtrack */
 void board_optimize(Board *board)
 {
     for (int row = 1; row < board->height - 1; row++)
@@ -399,20 +453,20 @@ void board_optimize(Board *board)
             {
                 if (cell->degree == 1)
                 {
-                    board_set_status(board, row, col, 2);
+                    board_set_priority(board, cell, 1);
                 }
             } //values of the edges - corners
             else if (row == 1 || col == 1 || row == board->height - 2 || col == board->width - 2)
             {
                 if (cell->degree == 4)
                 {
-                    board_set_status(board, row, col, 1);
+                    board_set_priority(board, cell, 1);
                     for (int i = 0; i < 4; i++)
                     {
                         Cell *neighbour = board_iter_neighbours(board, cell, i);
                         if (neighbour)
                         {
-                            board_set_status(board, neighbour->row, neighbour->col, 1);
+                            board_set_priority(board, neighbour, 1);
                         }
                     }
                 }
@@ -421,12 +475,13 @@ void board_optimize(Board *board)
     }
 }
 
-
 /* Used to free the memory of a board and all associated cells */
 void board_destroy(Board *board)
 {
     free(board->cells);
     free(board);
+    stack_destroy(board->stack_a);
+    stack_destroy(board->stack_b);
 }
 
 /* Get the degree of a given cell */
@@ -454,6 +509,23 @@ int board_get_status(Board *board, int row, int col)
     return cell->status;
 }
 
+/* Set the prioryty of a cell TODO move the cell of queue if needed */
+void board_set_priority(Board *board, Cell *cell, int priority)
+{
+    if (cell->priority != priority)
+    {
+        cell->priority = priority;
+        if (priority == 1)
+        {
+            stack_push(board->stack_a, stack_remove(board->stack_b, cell));
+        }
+        else
+        {
+            stack_push(board->stack_b, stack_remove(board->stack_a, cell));
+        }
+    }
+}
+
 /* Set the status of a given cell
  * with each assignation, we update the grafical interface and
  * update the count of the neighbours used in the neighbours branch prune
@@ -462,10 +534,12 @@ int board_get_status(Board *board, int row, int col)
 void board_set_status(Board *board, int row, int col, int status)
 {
     Cell *cell = board_get_cell(board, row, col);
-    int old_status = cell -> status;
+    int old_status = cell->status;
     // we first update all of our neighbours with the appropiate info about the change in status
     board_update_neighbours(board, cell, old_status, status);
     cell->status = status;
+    // we re-prioritize the neighbours and the cell, depending if it's empty or not
+    // board_update_heuristics(board, cell);
     if (status)
     {
         if (old_status == 0)
@@ -476,6 +550,15 @@ void board_set_status(Board *board, int row, int col, int status)
     }
     else
     {
+        // TODO change this to work with two stacks
+        if (cell->priority == 1)
+        {
+            stack_push(board->stack_a, cell);
+        }
+        else
+        {
+            stack_push(board->stack_b, cell);
+        }
         board->count_empty += 1;
         watcher_clear_cell(row, col);
     }
@@ -568,6 +651,6 @@ void board_print_color(Board *board)
 /* Debuging function */
 void board_print_cell(Cell *cell)
 {
-    printf("[%d, %d] degree: %d, status: %d, rebels: %d, loyals: %d, empty: %d\n", \
-    cell->row, cell->col, cell->degree, cell->status, cell->rebels, cell->loyals, cell->empty);
+    printf("[%d, %d] degree: %d, status: %d, rebels: %d, loyals: %d, empty: %d\n",
+           cell->row, cell->col, cell->degree, cell->status, cell->rebels, cell->loyals, cell->empty);
 }

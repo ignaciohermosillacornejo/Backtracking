@@ -3,40 +3,38 @@
 #include <unistd.h>
 #include "../watcher/watcher.h"
 #include "board.h"
-// #include "backtracking.h"
 #include "stack.h"
 
-bool backtracking(Board *board, int count)
+int backtracks = 0;
+
+bool backtracking(Board *board, int depth)
 {
-	count += 1;
+	depth += 1;
 	Cell *cell = board_next_assignation(board);
-	if (!cell)
+	if (!cell) // We've done all posible asignations
 	{
-		// printf("End of assignations reached!\n");
+		//return board_check_restrictions2(board);
 		return true;
 	}
 
 	for (int i = 1; i <= 2; i++)
 	{
 		// make assignment
-		int old_status = cell -> status;
-		board_set_status(board, cell->row, cell->col, i);
 		//sleep(1);
-		//printf("\nAssign cell color %d\n", i);
-		//board_print_cell(cell);
-		//printf("backtracking depth: %d\n", count);
+		board_set_status(board, cell->row, cell->col, i);
 		// check assignment is valid
-		if (board_check_restrictions(board, cell))
+		if (board_check_restrictions(board, cell))// (board_check_restrictions(board, cell))
 		{
-			// if all other assignment is valid
-			if (backtracking(board, count))
+			// if we are able to reach a solution from this state, return true
+			if (backtracking(board, depth))
 			{
 				return true;
 			} 
 		}
-		board_set_status(board, cell->row, cell->col, old_status); // backtrack
-		//sleep(1);
 	}
+	//sleep(1);
+	board_set_status(board, cell->row, cell->col, 0); // backtrack
+	backtracks += 1;
 	return false;
 }
 
@@ -86,27 +84,17 @@ int main(int argc, char **argv)
 			board_set_degree(board, row, col, degree);
 		}
 	}
-	// board_optimize(board);
+	//board_optimize(board);
 
 	/* Cerramos el archivo */
 	fclose(input_file);
 
-	// board_set_status(board, 1, 1, 2);
-	// board_set_status(board, 2, 1, 1);
-	// board_set_status(board, 2, 2, 1);
-	// board_set_status(board, 1, 2, 1);
-	// board_set_status(board, 5, 5, 2);
-	// board_set_status(board, 1, 3, 2);
-	// board_print_status(board);
-	// board_print_loyal_count(board);
-	// board_print_rebel_count(board);
-	// board_print_empty_count(board);
-	// sleep(15);
+	sleep(5);
 	backtracking(board, 0);
 	/* Paramos por 5 segundos para poder ver la ventana */
 	/* OJO: borra los sleeps o tu código puede dar timeout */
 	//printf("backtracing finished \n");
-	// sleep(60);
+	sleep(3);
 	/* Cerramos la ventana */
 	//char *filename = "test.pdf";
 	//watcher_snapshot(filename);
@@ -115,6 +103,8 @@ int main(int argc, char **argv)
 
 	/* We free the board struct memory */
 	board_destroy(board);
+
+	printf("N desasignaciones: %d\n", backtracks);
 
 	/* Retornamos 0 indicando que todo salió bien */
 	return 0;

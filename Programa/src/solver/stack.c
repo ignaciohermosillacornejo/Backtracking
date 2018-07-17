@@ -1,4 +1,5 @@
 #include "stack.h"
+#include "cell.h"
 #include <stdlib.h>
 #include <stdio.h>
 /* Stack class created based on the solution to "actividad 01" from this course
@@ -81,13 +82,49 @@ Cell *stack_pop(Stack *stack)
   return value;
 }
 
+/* Remove the given cell from the stack, returns NULL if the stack is empty
+ * or the cell wasn't found
+ */
+Cell *stack_remove(Stack *stack, Cell * cell)
+{
+  Cell *value = NULL;
+  if (stack->count) // we check the stack is not empty
+  {
+    Node * current = stack -> first;
+    Node * previous = NULL;
+    // in case the key we are looking is on the first node
+    if (current -> value == cell)
+    {
+      return stack_pop(stack);
+    }
+    // we iterate over the stack looking for the key
+    while (current && current -> value != cell)
+    {
+      previous = current;
+      current = current -> next;
+    }
+
+    // the key you are looking for is not here, return NULL pointer
+    if (!current)
+    {
+      return value;
+    }
+    previous -> next = current -> next;
+    value = current -> value;
+    free(current);
+    stack -> count--;
+  }
+  return value;
+
+}
+
 /* We free all the resources of the stack */
 void stack_destroy(Stack *stack)
 {
   // Remove all the nodes until the list is empty
   while (stack_pop(stack))
   {
-    printf("WARNING: Destroyed stack has elements left on it");
+    //printf("WARNING: Destroyed stack has elements left on it\n");
   }
   // Free the stack
   free(stack);

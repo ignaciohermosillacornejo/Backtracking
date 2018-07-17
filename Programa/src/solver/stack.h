@@ -1,5 +1,5 @@
 #pragma once
-#include "board.h"
+#include "cell.h"
 
 /* structure of the node that we use in our stack */
 struct node
@@ -32,6 +32,9 @@ void stack_push(Stack *stack, Cell *element);
 
 /* Pop an element from the stack and return it */
 Cell *stack_pop(Stack *stack);
+
+/* Searches the stack and returns the element, if it isn't found, it return NULL */
+Cell *stack_remove(Stack *stack, Cell *cell);
 
 /* Free all the memory associated of the stack */
 void stack_destroy(Stack *stack);
