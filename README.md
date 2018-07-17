@@ -1,5 +1,5 @@
 # Assignment N2
-Course IIC2133 @ PUC (2010-1) - Data structures and algorithms 
+Course IIC2133 @ PUC (2018-1) - Data structures and algorithms 
 
 C Implementation of a backtracking problem using prunning
 
